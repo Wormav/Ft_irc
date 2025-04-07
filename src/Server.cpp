@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Server.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: jlorette <jlorette@42angouleme.fr>         +#+  +:+       +#+        */
+/*   By: aauberti <aauberti@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/06 12:48:35 by jlorette          #+#    #+#             */
-/*   Updated: 2025/04/06 13:04:27 by jlorette         ###   ########.fr       */
+/*   Updated: 2025/04/07 08:36:27 by aauberti         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -103,13 +103,41 @@ void Server::run()
                 break;
             }
 
-            // Process the received message
-            std::cout << "Received: " << buffer;
+            // // Process the received message
+            // std::cout << "Received: " << buffer;
 
-            // Echo back the message (simple response)
-            std::string response = "Server echo: ";
-            response += buffer;
-            send(client_fd, response.c_str(), response.length(), 0);
+            // // Echo back the message (simple response)
+            // std::string response = "Server echo: ";
+            // response += buffer;
+            // send(client_fd, response.c_str(), response.length(), 0);
+            std::string msg(buffer);
+
+            if (msg.find("JOIN") == 0)
+            {
+                std::string channel = msg.substr(5);
+                size_t newline = channel.find_first_of("\r\n");
+                if (newline != std::string::npos)
+                    channel = channel.substr(0, newline);
+
+                if (channel[0] != '#')
+                    channel = "#" + channel;
+
+                std::string nick = "aauberti"; // definir l'username correctement apres ! juste je fais des test la 
+                std::string join_reply;
+
+                join_reply += ":" + nick + "!~user@localhost JOIN :" + channel + "\r\n";
+                join_reply += ":ircserv 332 " + nick + " " + channel + " :Welcome to the channel!\r\n";
+                join_reply += ":ircserv 353 " + nick + " = " + channel + " :" + nick + "\r\n";
+                join_reply += ":ircserv 366 " + nick + " " + channel + " :End of /NAMES list.\r\n";
+
+                send(client_fd, join_reply.c_str(), join_reply.length(), 0);
+            }
+            else
+            {
+                std::string response = "Server echo: ";
+                response += buffer;
+                send(client_fd, response.c_str(), response.length(), 0);
+            }
         }
 
         // Close connection after client disconnects or error
