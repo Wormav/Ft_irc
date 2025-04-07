@@ -11,6 +11,7 @@
 /* ************************************************************************** */
 
 #include <iostream>
+#include <cstdlib>
 #include <Server.hpp>
 #include <cstdlib>
 
