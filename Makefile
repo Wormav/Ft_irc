@@ -13,6 +13,8 @@ IFLAGS			:= -I $(INCS_DIR)
 # Sources
 SRCS			:=	main.cpp \
 					Server.cpp \
+					Channel.cpp \
+					User.cpp
 
 
 SRCS			:= $(addprefix $(SRCS_DIR)/, $(SRCS))
