@@ -12,6 +12,14 @@ private:
     std::set<int> operators; // FDs des clients qui sont opérateurs du canal
     std::set<int> invited;   // FDs des clients qui sont invités au canal
 
+    // Modes de canal
+    bool inviteOnly;       // Mode +i
+    bool topicRestricted;  // Mode +t
+    bool hasUserLimit;     // Mode +l
+    bool hasKey;           // Mode +k
+    std::string key;       // Clé pour le mode +k
+    size_t userLimit;      // Limite pour le mode +l
+
 public:
     Channel();
     explicit Channel(const std::string& channelName);
@@ -42,6 +50,24 @@ public:
     bool addInvite(int client_fd);
     bool removeInvite(int client_fd);
     bool isInvited(int client_fd) const;
+
+    // Gestion des modes de canal
+    bool isInviteOnly() const;
+    bool isTopicRestricted() const;
+    bool hasKeySet() const;
+    bool hasUserLimitSet() const;
+    const std::string& getKey() const;
+    size_t getUserLimit() const;
+
+    void setInviteOnly(bool value);
+    void setTopicRestricted(bool value);
+    void setKey(const std::string& newKey);
+    void removeKey();
+    void setUserLimit(size_t limit);
+    void removeUserLimit();
+
+    // Obtenir la chaîne des modes actifs
+    std::string getModeString() const;
 
     // Utilitaires
     void broadcastMessage(const std::string& message, int excludeClient = -1) const;

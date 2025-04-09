@@ -1,10 +1,13 @@
 #include "Channel.hpp"
 #include <sys/socket.h>
 #include <unistd.h>
+#include <sstream>
+#include <cstdlib> // Pour atoi
 
-Channel::Channel() {}
+Channel::Channel() : inviteOnly(false), topicRestricted(true), hasUserLimit(false), hasKey(false), userLimit(0) {}
 
-Channel::Channel(const std::string& channelName) : name(channelName), topic("Welcome to " + channelName) {}
+Channel::Channel(const std::string& channelName) : name(channelName), topic("Welcome to " + channelName),
+    inviteOnly(false), topicRestricted(true), hasUserLimit(false), hasKey(false), userLimit(0) {}
 
 Channel::~Channel() {}
 
@@ -79,6 +82,81 @@ bool Channel::removeInvite(int client_fd) {
 
 bool Channel::isInvited(int client_fd) const {
     return invited.find(client_fd) != invited.end();
+}
+
+// Gestion des modes de canal
+bool Channel::isInviteOnly() const {
+    return inviteOnly;
+}
+
+bool Channel::isTopicRestricted() const {
+    return topicRestricted;
+}
+
+bool Channel::hasKeySet() const {
+    return hasKey;
+}
+
+bool Channel::hasUserLimitSet() const {
+    return hasUserLimit;
+}
+
+const std::string& Channel::getKey() const {
+    return key;
+}
+
+size_t Channel::getUserLimit() const {
+    return userLimit;
+}
+
+void Channel::setInviteOnly(bool value) {
+    inviteOnly = value;
+}
+
+void Channel::setTopicRestricted(bool value) {
+    topicRestricted = value;
+}
+
+void Channel::setKey(const std::string& newKey) {
+    key = newKey;
+    hasKey = true;
+}
+
+void Channel::removeKey() {
+    key.clear();
+    hasKey = false;
+}
+
+void Channel::setUserLimit(size_t limit) {
+    userLimit = limit;
+    hasUserLimit = true;
+}
+
+void Channel::removeUserLimit() {
+    userLimit = 0;
+    hasUserLimit = false;
+}
+
+std::string Channel::getModeString() const {
+    std::string modes = "+";
+    std::string params = "";
+
+    if (inviteOnly) modes += "i";
+    if (topicRestricted) modes += "t";
+
+    if (hasKey) {
+        modes += "k";
+        params += " " + key;
+    }
+
+    if (hasUserLimit) {
+        modes += "l";
+        std::stringstream ss;
+        ss << userLimit;
+        params += " " + ss.str();
+    }
+
+    return modes + params;
 }
 
 // Utilitaires

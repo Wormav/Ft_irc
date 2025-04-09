@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <unistd.h>
 #include <sys/socket.h>
+#include <cstdlib> // Pour atoi
 
 Command::Command(Server* server, std::map<int, User>& users, std::map<std::string, Channel>& channels, const std::string& password)
     : server(server), users(users), channels(channels), password(password) {}
@@ -52,6 +53,9 @@ void Command::process(int client_fd, const std::string& line) {
     }
     else if (command == "TOPIC") {
         handleTopic(client_fd, line);
+    }
+    else if (command == "MODE") {
+        handleMode(client_fd, line);
     }
     else {
         std::string error = ":ircserv 421 " +
@@ -196,35 +200,57 @@ void Command::handleJoin(int client_fd, std::istringstream& iss) {
             isNewChannel = true;
         }
 
-        // Vérifier si l'utilisateur est invité ou si c'est un nouveau canal
-        if (!isNewChannel && !channels[channel_name].isInvited(client_fd) && !channels[channel_name].hasMember(client_fd)) {
+        // Vérifier si l'utilisateur est invité uniquement si le canal est en mode invitation only
+        Channel& channel = channels[channel_name];
+        if (!isNewChannel && channel.isInviteOnly() && !channel.isInvited(client_fd) && !channel.hasMember(client_fd)) {
             std::string error = ":ircserv 473 " + users[client_fd].getNickname() + " " + channel_name + " :Cannot join channel (+i)\r\n";
             send(client_fd, error.c_str(), error.length(), 0);
             continue;
         }
 
+        // Vérifier si le canal a une clé (mot de passe)
+        if (!isNewChannel && channel.hasKeySet()) {
+            std::string key;
+            std::istringstream key_iss(channel_params);
+            std::string temp;
+            key_iss >> temp >> key; // Ignorer le premier paramètre (nom du canal) et lire la clé
+
+            if (key.empty() || key != channel.getKey()) {
+                std::string error = ":ircserv 475 " + users[client_fd].getNickname() + " " + channel_name + " :Cannot join channel (+k) - bad key\r\n";
+                send(client_fd, error.c_str(), error.length(), 0);
+                continue;
+            }
+        }
+
+        // Vérifier si le canal a atteint sa limite d'utilisateurs
+        if (!isNewChannel && channel.hasUserLimitSet() && channel.getMembers().size() >= channel.getUserLimit()) {
+            std::string error = ":ircserv 471 " + users[client_fd].getNickname() + " " + channel_name + " :Cannot join channel (+l) - channel is full\r\n";
+            send(client_fd, error.c_str(), error.length(), 0);
+            continue;
+        }
+
         // Ajouter l'utilisateur au canal et retirer l'invitation
-        channels[channel_name].addMember(client_fd);
-        channels[channel_name].removeInvite(client_fd);
+        channel.addMember(client_fd);
+        channel.removeInvite(client_fd);
 
         // Si c'est un nouveau canal, le premier utilisateur devient opérateur
         if (isNewChannel) {
-            channels[channel_name].addOperator(client_fd);
+            channel.addOperator(client_fd);
         }
 
         std::string nick = users[client_fd].getNickname();
 
         std::string join_notification = ":" + users[client_fd].getFullIdentity() + " JOIN :" + channel_name + "\r\n";
-        channels[channel_name].broadcastMessage(join_notification);
+        channel.broadcastMessage(join_notification);
 
-        if (!channels[channel_name].getTopic().empty()) {
-            std::string topic_reply = ":ircserv 332 " + nick + " " + channel_name + " :" + channels[channel_name].getTopic() + "\r\n";
+        if (!channel.getTopic().empty()) {
+            std::string topic_reply = ":ircserv 332 " + nick + " " + channel_name + " :" + channel.getTopic() + "\r\n";
             send(client_fd, topic_reply.c_str(), topic_reply.length(), 0);
         }
 
         std::string members_list;
-        const std::set<int>& members = channels[channel_name].getMembers();
-        const std::set<int>& operators = channels[channel_name].getOperators();
+        const std::set<int>& members = channel.getMembers();
+        const std::set<int>& operators = channel.getOperators();
         for (std::set<int>::const_iterator member_it = members.begin(); member_it != members.end(); ++member_it) {
             std::string member_nick = users[*member_it].getNickname();
             // Ajouter le symbole @ pour les opérateurs
@@ -593,8 +619,8 @@ void Command::handleTopic(int client_fd, const std::string& line) {
         return;
     }
 
-    // Si un nouveau topic est fourni, vérifier que l'utilisateur est opérateur
-    if (!channel_it->second.isOperator(client_fd)) {
+    // Si un nouveau topic est fourni et que le mode +t est actif, vérifier que l'utilisateur est opérateur
+    if (channel_it->second.isTopicRestricted() && !channel_it->second.isOperator(client_fd)) {
         std::string error = ":ircserv 482 " + users[client_fd].getNickname() + " " + channel_name + " :You're not channel operator\r\n";
         send(client_fd, error.c_str(), error.length(), 0);
         return;
@@ -615,4 +641,171 @@ void Command::handleTopic(int client_fd, const std::string& line) {
     // Notifier tous les membres du canal du changement de topic
     std::string topic_notification = ":" + users[client_fd].getFullIdentity() + " TOPIC " + channel_name + " :" + new_topic + "\r\n";
     channel_it->second.broadcastMessage(topic_notification);
+}
+
+void Command::handleMode(int client_fd, const std::string& line) {
+    if (!users[client_fd].isAuthenticated()) {
+        std::string error = ":ircserv 451 * :You have not registered\r\n";
+        send(client_fd, error.c_str(), error.length(), 0);
+        return;
+    }
+
+    std::istringstream iss(line.substr(5)); // Ignorer "MODE "
+    std::string target, modes;
+    iss >> target;
+
+    // Si pas de cible ou pas de mode spécifié
+    if (target.empty()) {
+        std::string error = ":ircserv 461 " + users[client_fd].getNickname() + " MODE :Not enough parameters\r\n";
+        send(client_fd, error.c_str(), error.length(), 0);
+        return;
+    }
+
+    // Si le canal n'existe pas
+    if (target[0] == '#' && channels.find(target) == channels.end()) {
+        std::string error = ":ircserv 403 " + users[client_fd].getNickname() + " " + target + " :No such channel\r\n";
+        send(client_fd, error.c_str(), error.length(), 0);
+        return;
+    }
+
+    // Pour l'instant, on ne gère que les modes de canal
+    if (target[0] != '#') {
+        std::string error = ":ircserv 502 " + users[client_fd].getNickname() + " :Cannot change mode for other users\r\n";
+        send(client_fd, error.c_str(), error.length(), 0);
+        return;
+    }
+
+    Channel& channel = channels[target];
+
+    // Si aucun mode n'est spécifié, afficher les modes actuels du canal
+    if (!(iss >> modes)) {
+        std::string mode_response = ":ircserv 324 " + users[client_fd].getNickname() + " " + target + " " + channel.getModeString() + "\r\n";
+        send(client_fd, mode_response.c_str(), mode_response.length(), 0);
+        return;
+    }
+
+    // Vérifier si l'utilisateur est sur le canal
+    if (!channel.hasMember(client_fd)) {
+        std::string error = ":ircserv 442 " + users[client_fd].getNickname() + " " + target + " :You're not on that channel\r\n";
+        send(client_fd, error.c_str(), error.length(), 0);
+        return;
+    }
+
+    // Vérifier si l'utilisateur est un opérateur du canal
+    if (!channel.isOperator(client_fd)) {
+        std::string error = ":ircserv 482 " + users[client_fd].getNickname() + " " + target + " :You're not channel operator\r\n";
+        send(client_fd, error.c_str(), error.length(), 0);
+        return;
+    }
+
+    // Traitement des modes
+    bool adding = true;  // Par défaut, on ajoute des modes
+    std::string modeChanges = "+";
+    std::string modeParams = "";
+    std::string response = "";
+
+    for (size_t i = 0; i < modes.length(); ++i) {
+        char c = modes[i];
+
+        if (c == '+') {
+            adding = true;
+            modeChanges = "+";
+        }
+        else if (c == '-') {
+            adding = false;
+            modeChanges = "-";
+        }
+        else if (c == 'i') {
+            // Mode invite-only
+            channel.setInviteOnly(adding);
+            modeChanges += "i";
+        }
+        else if (c == 't') {
+            // Mode topic restriction
+            channel.setTopicRestricted(adding);
+            modeChanges += "t";
+        }
+        else if (c == 'k') {
+            // Mode key (password)
+            if (adding) {
+                std::string key;
+                if (!(iss >> key) || key.empty()) {
+                    std::string error = ":ircserv 461 " + users[client_fd].getNickname() + " MODE :Not enough parameters\r\n";
+                    send(client_fd, error.c_str(), error.length(), 0);
+                    continue;
+                }
+                channel.setKey(key);
+                modeChanges += "k";
+                modeParams += " " + key;
+            } else {
+                channel.removeKey();
+                modeChanges += "k";
+            }
+        }
+        else if (c == 'o') {
+            // Mode operator
+            std::string target_nick;
+            if (!(iss >> target_nick) || target_nick.empty()) {
+                std::string error = ":ircserv 461 " + users[client_fd].getNickname() + " MODE :Not enough parameters\r\n";
+                send(client_fd, error.c_str(), error.length(), 0);
+                continue;
+            }
+
+            int target_fd = -1;
+            for (std::map<int, User>::iterator it = users.begin(); it != users.end(); ++it) {
+                if (it->second.getNickname() == target_nick && channel.hasMember(it->first)) {
+                    target_fd = it->first;
+                    break;
+                }
+            }
+
+            if (target_fd == -1) {
+                std::string error = ":ircserv 441 " + users[client_fd].getNickname() + " " + target_nick + " " + target + " :They aren't on that channel\r\n";
+                send(client_fd, error.c_str(), error.length(), 0);
+                continue;
+            }
+
+            if (adding) {
+                channel.addOperator(target_fd);
+            } else {
+                channel.removeOperator(target_fd);
+            }
+
+            modeChanges += "o";
+            modeParams += " " + target_nick;
+        }
+        else if (c == 'l') {
+            // Mode user limit
+            if (adding) {
+                size_t limit;
+                std::string limitStr;
+                if (!(iss >> limitStr) || limitStr.empty()) {
+                    std::string error = ":ircserv 461 " + users[client_fd].getNickname() + " MODE :Not enough parameters\r\n";
+                    send(client_fd, error.c_str(), error.length(), 0);
+                    continue;
+                }
+
+                // Remplacer std::stoul par atoi avec vérification
+                int limitInt = atoi(limitStr.c_str());
+                if (limitInt <= 0) {
+                    std::string error = ":ircserv 461 " + users[client_fd].getNickname() + " MODE :Invalid limit value\r\n";
+                    send(client_fd, error.c_str(), error.length(), 0);
+                    continue;
+                }
+                limit = static_cast<size_t>(limitInt);
+                channel.setUserLimit(limit);
+                modeChanges += "l";
+                modeParams += " " + limitStr;
+            } else {
+                channel.removeUserLimit();
+                modeChanges += "l";
+            }
+        }
+    }
+
+    // Si des modes ont été changés, envoyer une notification à tous les membres du canal
+    if (modeChanges.length() > 1) {
+        std::string mode_notification = ":" + users[client_fd].getFullIdentity() + " MODE " + target + " " + modeChanges + modeParams + "\r\n";
+        channel.broadcastMessage(mode_notification);
+    }
 }

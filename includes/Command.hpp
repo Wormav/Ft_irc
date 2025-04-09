@@ -36,6 +36,7 @@ public:
     void handleKick(int client_fd, const std::string& line);
     void handleInvite(int client_fd, const std::string& line);
     void handleTopic(int client_fd, const std::string& line);
+    void handleMode(int client_fd, const std::string& line);
 };
 
 #endif
