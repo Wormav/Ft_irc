@@ -33,6 +33,7 @@ public:
     void handlePing(int client_fd, std::istringstream& iss);
     void handlePart(int client_fd, const std::string& line);
     void handleQuit(int client_fd, std::istringstream& iss);
+    void handleKick(int client_fd, const std::string& line);
 };
 
 #endif
