@@ -47,6 +47,9 @@ void Command::process(int client_fd, const std::string& line) {
     else if (command == "KICK") {
         handleKick(client_fd, line);
     }
+    else if (command == "INVITE") {
+        handleInvite(client_fd, line);
+    }
     else {
         std::string error = ":ircserv 421 " +
                            (users[client_fd].isAuthenticated() ? users[client_fd].getNickname() : std::string("*")) +
@@ -190,7 +193,16 @@ void Command::handleJoin(int client_fd, std::istringstream& iss) {
             isNewChannel = true;
         }
 
+        // Vérifier si l'utilisateur est invité ou si c'est un nouveau canal
+        if (!isNewChannel && !channels[channel_name].isInvited(client_fd) && !channels[channel_name].hasMember(client_fd)) {
+            std::string error = ":ircserv 473 " + users[client_fd].getNickname() + " " + channel_name + " :Cannot join channel (+i)\r\n";
+            send(client_fd, error.c_str(), error.length(), 0);
+            continue;
+        }
+
+        // Ajouter l'utilisateur au canal et retirer l'invitation
         channels[channel_name].addMember(client_fd);
+        channels[channel_name].removeInvite(client_fd);
 
         // Si c'est un nouveau canal, le premier utilisateur devient opérateur
         if (isNewChannel) {
@@ -444,4 +456,82 @@ void Command::handleKick(int client_fd, const std::string& line) {
 
     // Retirer l'utilisateur cible du canal
     channel_it->second.removeMember(target_fd);
+}
+
+void Command::handleInvite(int client_fd, const std::string& line) {
+    if (!users[client_fd].isAuthenticated()) {
+        std::string error = ":ircserv 451 * :You have not registered\r\n";
+        send(client_fd, error.c_str(), error.length(), 0);
+        return;
+    }
+
+    std::istringstream iss(line.substr(7)); // Ignorer "INVITE "
+    std::string nickname, channel_name;
+
+    iss >> nickname >> channel_name;
+
+    if (nickname.empty() || channel_name.empty()) {
+        std::string error = ":ircserv 461 " + users[client_fd].getNickname() + " INVITE :Not enough parameters\r\n";
+        send(client_fd, error.c_str(), error.length(), 0);
+        return;
+    }
+
+    if (channel_name[0] != '#') {
+        channel_name = "#" + channel_name;
+    }
+
+    // Vérifier si le canal existe
+    std::map<std::string, Channel>::iterator channel_it = channels.find(channel_name);
+    if (channel_it == channels.end()) {
+        std::string error = ":ircserv 403 " + users[client_fd].getNickname() + " " + channel_name + " :No such channel\r\n";
+        send(client_fd, error.c_str(), error.length(), 0);
+        return;
+    }
+
+    // Vérifier si l'utilisateur est sur le canal
+    if (!channel_it->second.hasMember(client_fd)) {
+        std::string error = ":ircserv 442 " + users[client_fd].getNickname() + " " + channel_name + " :You're not on that channel\r\n";
+        send(client_fd, error.c_str(), error.length(), 0);
+        return;
+    }
+
+    // Vérifier si l'utilisateur est un opérateur
+    if (!channel_it->second.isOperator(client_fd)) {
+        std::string error = ":ircserv 482 " + users[client_fd].getNickname() + " " + channel_name + " :You're not channel operator\r\n";
+        send(client_fd, error.c_str(), error.length(), 0);
+        return;
+    }
+
+    // Trouver l'utilisateur cible
+    int target_fd = -1;
+    for (std::map<int, User>::iterator it = users.begin(); it != users.end(); ++it) {
+        if (it->second.getNickname() == nickname) {
+            target_fd = it->first;
+            break;
+        }
+    }
+
+    if (target_fd == -1) {
+        std::string error = ":ircserv 401 " + users[client_fd].getNickname() + " " + nickname + " :No such nick/channel\r\n";
+        send(client_fd, error.c_str(), error.length(), 0);
+        return;
+    }
+
+    // Vérifier si l'utilisateur cible est déjà dans le canal
+    if (channel_it->second.hasMember(target_fd)) {
+        std::string error = ":ircserv 443 " + users[client_fd].getNickname() + " " + nickname + " " + channel_name + " :is already on channel\r\n";
+        send(client_fd, error.c_str(), error.length(), 0);
+        return;
+    }
+
+    // Ajouter l'invitation
+    channel_it->second.addInvite(target_fd);
+
+    // Envoi de la notification d'invitation à l'utilisateur cible
+    std::string invite_notification = ":" + users[client_fd].getFullIdentity() + " INVITE " + nickname + " :" + channel_name + "\r\n";
+    send(target_fd, invite_notification.c_str(), invite_notification.length(), 0);
+
+    // Confirmation à l'utilisateur qui a envoyé l'invitation
+    std::string invite_confirm = ":ircserv 341 " + users[client_fd].getNickname() + " " + nickname + " " + channel_name + "\r\n";
+    send(client_fd, invite_confirm.c_str(), invite_confirm.length(), 0);
 }

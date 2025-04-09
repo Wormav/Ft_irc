@@ -10,6 +10,7 @@ private:
     std::string topic;
     std::set<int> members;  // FDs des clients qui sont membres du canal
     std::set<int> operators; // FDs des clients qui sont opérateurs du canal
+    std::set<int> invited;   // FDs des clients qui sont invités au canal
 
 public:
     Channel();
@@ -36,6 +37,11 @@ public:
     bool addOperator(int client_fd);
     bool removeOperator(int client_fd);
     bool isOperator(int client_fd) const;
+
+    // Gestion des invitations
+    bool addInvite(int client_fd);
+    bool removeInvite(int client_fd);
+    bool isInvited(int client_fd) const;
 
     // Utilitaires
     void broadcastMessage(const std::string& message, int excludeClient = -1) const;

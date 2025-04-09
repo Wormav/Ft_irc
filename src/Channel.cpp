@@ -68,6 +68,19 @@ bool Channel::isOperator(int client_fd) const {
     return operators.find(client_fd) != operators.end();
 }
 
+// Gestion des invitations
+bool Channel::addInvite(int client_fd) {
+    return invited.insert(client_fd).second;
+}
+
+bool Channel::removeInvite(int client_fd) {
+    return invited.erase(client_fd) > 0;
+}
+
+bool Channel::isInvited(int client_fd) const {
+    return invited.find(client_fd) != invited.end();
+}
+
 // Utilitaires
 void Channel::broadcastMessage(const std::string& message, int excludeClient) const {
     for (std::set<int>::const_iterator it = members.begin(); it != members.end(); ++it) {
