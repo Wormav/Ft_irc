@@ -181,11 +181,18 @@ void Command::handleJoin(int client_fd, std::istringstream& iss) {
             channel_name = "#" + channel_name;
         }
 
+        bool isNewChannel = false;
         if (channels.find(channel_name) == channels.end()) {
             channels[channel_name] = Channel(channel_name);
+            isNewChannel = true;
         }
 
         channels[channel_name].addMember(client_fd);
+
+        // Si c'est un nouveau canal, le premier utilisateur devient opérateur
+        if (isNewChannel) {
+            channels[channel_name].addOperator(client_fd);
+        }
 
         std::string nick = users[client_fd].getNickname();
 
@@ -199,9 +206,15 @@ void Command::handleJoin(int client_fd, std::istringstream& iss) {
 
         std::string members_list;
         const std::set<int>& members = channels[channel_name].getMembers();
+        const std::set<int>& operators = channels[channel_name].getOperators();
         for (std::set<int>::const_iterator member_it = members.begin(); member_it != members.end(); ++member_it) {
             std::string member_nick = users[*member_it].getNickname();
-            members_list += member_nick + " ";
+            // Ajouter le symbole @ pour les opérateurs
+            if (operators.find(*member_it) != operators.end()) {
+                members_list += "@" + member_nick + " ";
+            } else {
+                members_list += member_nick + " ";
+            }
         }
 
         std::string names_reply = ":ircserv 353 " + nick + " = " + channel_name + " :" + members_list + "\r\n";

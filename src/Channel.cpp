@@ -21,6 +21,10 @@ const std::set<int>& Channel::getMembers() const {
     return members;
 }
 
+const std::set<int>& Channel::getOperators() const {
+    return operators;
+}
+
 // Setters
 void Channel::setName(const std::string& channelName) {
     name = channelName;
@@ -36,6 +40,7 @@ bool Channel::addMember(int client_fd) {
 }
 
 bool Channel::removeMember(int client_fd) {
+    removeOperator(client_fd);  // Si c'était un opérateur, on le retire aussi
     return members.erase(client_fd) > 0;
 }
 
@@ -45,6 +50,22 @@ bool Channel::hasMember(int client_fd) const {
 
 bool Channel::isEmpty() const {
     return members.empty();
+}
+
+// Gestion des opérateurs
+bool Channel::addOperator(int client_fd) {
+    if (hasMember(client_fd)) {
+        return operators.insert(client_fd).second;
+    }
+    return false;
+}
+
+bool Channel::removeOperator(int client_fd) {
+    return operators.erase(client_fd) > 0;
+}
+
+bool Channel::isOperator(int client_fd) const {
+    return operators.find(client_fd) != operators.end();
 }
 
 // Utilitaires

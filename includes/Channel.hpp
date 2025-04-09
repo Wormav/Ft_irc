@@ -9,6 +9,7 @@ private:
     std::string name;
     std::string topic;
     std::set<int> members;  // FDs des clients qui sont membres du canal
+    std::set<int> operators; // FDs des clients qui sont opérateurs du canal
 
 public:
     Channel();
@@ -19,6 +20,7 @@ public:
     const std::string& getName() const;
     const std::string& getTopic() const;
     const std::set<int>& getMembers() const;
+    const std::set<int>& getOperators() const;
 
     // Setters
     void setName(const std::string& channelName);
@@ -29,6 +31,11 @@ public:
     bool removeMember(int client_fd);
     bool hasMember(int client_fd) const;
     bool isEmpty() const;
+
+    // Gestion des opérateurs
+    bool addOperator(int client_fd);
+    bool removeOperator(int client_fd);
+    bool isOperator(int client_fd) const;
 
     // Utilitaires
     void broadcastMessage(const std::string& message, int excludeClient = -1) const;
