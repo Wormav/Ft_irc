@@ -14,7 +14,8 @@ IFLAGS			:= -I $(INCS_DIR)
 SRCS			:=	main.cpp \
 					Server.cpp \
 					Channel.cpp \
-					User.cpp
+					User.cpp \
+					Command.cpp \
 
 
 SRCS			:= $(addprefix $(SRCS_DIR)/, $(SRCS))
