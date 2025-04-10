@@ -35,7 +35,6 @@ void Command::process(int client_fd, const std::string& line) {
         handlePart(client_fd, line);
     }
     else if (command == "QUIT") {
-        // Vérifier si l'utilisateur existe encore
         if (users.find(client_fd) != users.end()) {
             handleQuit(client_fd, line);
         }

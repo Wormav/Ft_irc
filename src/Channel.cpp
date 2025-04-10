@@ -44,15 +44,12 @@ bool Channel::addMember(int client_fd) {
 }
 
 bool Channel::removeMember(int client_fd) {
-    // Vérifier d'abord si le membre existe
     if (members.find(client_fd) == members.end()) {
         return false;
     }
 
-    // Retirer le statut d'opérateur si nécessaire
     removeOperator(client_fd);
 
-    // Supprimer des membres
     return members.erase(client_fd) > 0;
 }
 
@@ -64,7 +61,6 @@ bool Channel::isEmpty() const {
     return members.empty();
 }
 
-// Gestion des opérateurs
 bool Channel::addOperator(int client_fd) {
     if (hasMember(client_fd)) {
         return operators.insert(client_fd).second;
@@ -80,7 +76,6 @@ bool Channel::isOperator(int client_fd) const {
     return operators.find(client_fd) != operators.end();
 }
 
-// Gestion des invitations
 bool Channel::addInvite(int client_fd) {
     return invited.insert(client_fd).second;
 }
@@ -93,7 +88,6 @@ bool Channel::isInvited(int client_fd) const {
     return invited.find(client_fd) != invited.end();
 }
 
-// Gestion des modes de canal
 bool Channel::isInviteOnly() const {
     return inviteOnly;
 }
@@ -172,10 +166,8 @@ std::string Channel::getModeString() const {
 void Channel::broadcastMessage(const std::string& message, int excludeClient) const {
     for (std::set<int>::const_iterator it = members.begin(); it != members.end(); ++it) {
         if (*it != excludeClient) {
-            // Vérifier si le descripteur de fichier est valide (supérieur à 0)
             if (*it > 0) {
                 int result = send(*it, message.c_str(), message.length(), MSG_NOSIGNAL);
-                // MSG_NOSIGNAL évite que le programme ne reçoive SIGPIPE si la connexion est fermée
                 if (result < 0 && errno != EWOULDBLOCK && errno != EAGAIN) {
                     // Gestion silencieuse des erreurs
                     // On pourrait logger l'erreur ici si nécessaire

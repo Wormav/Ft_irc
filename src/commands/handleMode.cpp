@@ -58,14 +58,12 @@ static void handleModeO(Channel& channel, bool adding, std::string& modeChanges,
     if (adding) {
         channel.addOperator(target_fd);
     } else {
-        // Vérifier le nombre d'opérateurs avant de retirer le statut
         int operatorCount = 0;
         const std::set<int>& ops = channel.getOperators();
         for (std::set<int>::const_iterator it = ops.begin(); it != ops.end(); ++it) {
             operatorCount++;
         }
 
-        // Empêcher la suppression du dernier opérateur
         if (operatorCount <= 1 && channel.isOperator(target_fd)) {
             std::string error = ":ircserv 482 " + users.at(client_fd).getNickname() + " " + channel.getName() + " :Cannot remove last operator from channel\r\n";
             send(client_fd, error.c_str(), error.length(), 0);
@@ -85,7 +83,6 @@ static void handleModeL(Channel& channel, bool adding, std::string& modeChanges,
     if (adding) {
         std::string limitStr;
         if (!(iss >> limitStr) || limitStr.empty()) {
-            // Utiliser users.at() au lieu de users[] pour accéder à un élément d'une map constante
             std::string error = ":ircserv 461 " + users.at(client_fd).getNickname() + " MODE :Not enough parameters\r\n";
             send(client_fd, error.c_str(), error.length(), 0);
             return;
@@ -93,7 +90,6 @@ static void handleModeL(Channel& channel, bool adding, std::string& modeChanges,
 
         int limitInt = atoi(limitStr.c_str());
         if (limitInt <= 0) {
-            // Utiliser users.at() au lieu de users[] ici aussi
             std::string error = ":ircserv 461 " + users.at(client_fd).getNickname() + " MODE :Invalid limit value\r\n";
             send(client_fd, error.c_str(), error.length(), 0);
             return;

@@ -16,20 +16,18 @@ private:
     std::string password;
     int server_fd;
     int epoll_fd;
-    static bool running;  // Variable statique pour contrôler la boucle principale
+    static bool running;
 
     std::map<int, std::string> client_buffers;
     std::map<int, User> users;
     std::map<std::string, Channel> channels;
     Command* command_handler;
 
-    // Méthodes privées pour gérer le serveur
     void setupSocket();
     void handleNewConnection();
     void handleClientData(int client_fd);
     void processCommand(int client_fd, const std::string& line);
 
-    // Gestionnaire de signal
     static void handleSignal(int signal);
 
 public:
@@ -38,7 +36,7 @@ public:
 
     void run();
     void disconnectClient(int client_fd);
-    void cleanupResources();  // Nouvelle méthode pour nettoyer proprement les ressources
+    void cleanupResources();
 };
 
 #endif
