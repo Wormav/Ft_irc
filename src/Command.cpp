@@ -29,17 +29,17 @@ void Command::process(int client_fd, const std::string& line) {
         handleJoin(client_fd, iss);
     }
     else if (command == "PRIVMSG") {
-        handlePrivmsg(client_fd, iss, false);
-    }
-    else if (command == "PING") {
-        handlePing(client_fd, iss);
+        handlePrivmsg(client_fd, iss);
     }
     else if (command == "PART") {
         handlePart(client_fd, line);
     }
     else if (command == "QUIT") {
-        handleQuit(client_fd, iss);
-    }
+        // Vérifier si l'utilisateur existe encore
+        if (users.find(client_fd) != users.end()) {
+            handleQuit(client_fd, line);
+        }
+	}
     else if (command == "KICK") {
         handleKick(client_fd, line);
     }

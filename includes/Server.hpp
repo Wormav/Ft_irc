@@ -4,6 +4,7 @@
 #include <string>
 #include <map>
 #include <set>
+#include <signal.h>
 #include "User.hpp"
 #include "Channel.hpp"
 #include "Command.hpp"
@@ -15,6 +16,7 @@ private:
     std::string password;
     int server_fd;
     int epoll_fd;
+    static bool running;  // Variable statique pour contrôler la boucle principale
 
     std::map<int, std::string> client_buffers;
     std::map<int, User> users;
@@ -27,12 +29,16 @@ private:
     void handleClientData(int client_fd);
     void processCommand(int client_fd, const std::string& line);
 
+    // Gestionnaire de signal
+    static void handleSignal(int signal);
+
 public:
     Server(int port, const std::string& password);
     ~Server();
 
     void run();
     void disconnectClient(int client_fd);
+    void cleanupResources();  // Nouvelle méthode pour nettoyer proprement les ressources
 };
 
 #endif

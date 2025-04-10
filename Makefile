@@ -23,7 +23,6 @@ SRCS			:=	main.cpp \
 					commands/handleNick.cpp \
 					commands/handlePart.cpp \
 					commands/handlePass.cpp \
-					commands/handlePing.cpp \
 					commands/handlePrivmsg.cpp \
 					commands/handleQuit.cpp \
 					commands/handleTopic.cpp \

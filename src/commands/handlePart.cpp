@@ -45,6 +45,41 @@ void Command::handlePart(int client_fd, const std::string& line) {
             continue;
         }
 
+        // Vérifier si l'utilisateur qui part est un opérateur
+        bool isOp = channel_it->second.isOperator(client_fd);
+
+        // Si l'utilisateur est un opérateur, vérifier s'il reste d'autres opérateurs
+        if (isOp) {
+            // Compter les opérateurs du canal
+            int operatorCount = 0;
+            for (std::set<int>::const_iterator it = channel_it->second.getOperators().begin();
+                 it != channel_it->second.getOperators().end(); ++it) {
+                operatorCount++;
+            }
+
+            // S'il n'y a qu'un seul opérateur (celui qui part) et qu'il reste des membres
+            if (operatorCount == 1 && channel_it->second.getMembers().size() > 1) {
+                // Trouver un autre utilisateur à promouvoir comme opérateur
+                int newOp = -1;
+                for (std::set<int>::const_iterator it = channel_it->second.getMembers().begin();
+                     it != channel_it->second.getMembers().end(); ++it) {
+                    if (*it != client_fd) {
+                        newOp = *it;
+                        break;
+                    }
+                }
+
+                if (newOp != -1) {
+                    // Promouvoir le nouvel opérateur
+                    channel_it->second.addOperator(newOp);
+
+                    // Informer le canal du changement d'opérateur
+                    std::string mode_notification = ":ircserv MODE " + channel_name + " +o " + users[newOp].getNickname() + "\r\n";
+                    channel_it->second.broadcastMessage(mode_notification);
+                }
+            }
+        }
+
         std::string part_notification = ":" + users[client_fd].getFullIdentity() + " PART " + channel_name + " :" + part_message + "\r\n";
         channel_it->second.broadcastMessage(part_notification);
 
