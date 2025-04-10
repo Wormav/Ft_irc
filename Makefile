@@ -16,6 +16,19 @@ SRCS			:=	main.cpp \
 					Channel.cpp \
 					User.cpp \
 					Command.cpp \
+					commands/handleInvite.cpp \
+					commands/handleJoin.cpp \
+					commands/handleKick.cpp \
+					commands/handleMode.cpp \
+					commands/handleNick.cpp \
+					commands/handlePart.cpp \
+					commands/handlePass.cpp \
+					commands/handlePing.cpp \
+					commands/handlePrivmsg.cpp \
+					commands/handleQuit.cpp \
+					commands/handleTopic.cpp \
+					commands/handleUser.cpp \
+					commands/sendWelcomeMessages.cpp \
 
 
 SRCS			:= $(addprefix $(SRCS_DIR)/, $(SRCS))
