@@ -105,16 +105,29 @@ static void handleModeL(Channel& channel, bool adding, std::string& modeChanges,
 }
 
 void Command::handleMode(int client_fd, const std::string& line) {
+    // if (!users.at(client_fd).isAuthenticated()) {
+    //     std::string error = ":ircserv 451 * :You have not registered\r\n";
+    //     send(client_fd, error.c_str(), error.length(), 0);
+    //     return;
+    // }
+
+    // std::istringstream iss(line.substr(5));
+    // std::string target, modes;
+    // iss >> target;
     if (!users.at(client_fd).isAuthenticated()) {
         std::string error = ":ircserv 451 * :You have not registered\r\n";
         send(client_fd, error.c_str(), error.length(), 0);
         return;
     }
 
-    std::istringstream iss(line.substr(5));
+    std::istringstream iss;
+    if (line.length() > 5) {
+        iss.str(line.substr(5));
+    }
+    
     std::string target, modes;
     iss >> target;
-
+    
     if (target.empty()) {
         std::string error = ":ircserv 461 " + users.at(client_fd).getNickname() + " MODE :Not enough parameters\r\n";
         send(client_fd, error.c_str(), error.length(), 0);

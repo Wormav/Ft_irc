@@ -8,7 +8,14 @@ void Command::handleTopic(int client_fd, const std::string& line) {
         return;
     }
 
-    std::istringstream iss(line.substr(6));
+    // std::istringstream iss(line.substr(6));
+    // std::string channel_name;
+    // iss >> channel_name;
+
+    std::istringstream iss;
+    if (line.length() > 6) {
+        iss.str(line.substr(6));
+    }
     std::string channel_name;
     iss >> channel_name;
 

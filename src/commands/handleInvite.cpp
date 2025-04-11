@@ -8,7 +8,11 @@ void Command::handleInvite(int client_fd, const std::string& line) {
         return;
     }
 
-    std::istringstream iss(line.substr(7));
+    //std::istringstream iss(line.substr(7));
+    std::istringstream iss;
+    if (line.length() > 7) {
+        iss.str(line.substr(7));
+    }
     std::string nickname, channel_name;
 
     iss >> nickname >> channel_name;

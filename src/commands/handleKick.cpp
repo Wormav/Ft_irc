@@ -8,7 +8,11 @@ void Command::handleKick(int client_fd, const std::string& line) {
         return;
     }
 
-    std::istringstream iss(line.substr(5));
+    //std::istringstream iss(line.substr(5));
+    std::istringstream iss;
+    if (line.length() > 5) {
+        iss.str(line.substr(5));
+    }
     std::string channel_name, target_nick;
 
     iss >> channel_name >> target_nick;
