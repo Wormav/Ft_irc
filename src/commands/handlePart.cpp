@@ -45,6 +45,34 @@ void Command::handlePart(int client_fd, const std::string& line) {
             continue;
         }
 
+        bool isOp = channel_it->second.isOperator(client_fd);
+
+        if (isOp) {
+            int operatorCount = 0;
+            for (std::set<int>::const_iterator it = channel_it->second.getOperators().begin();
+                 it != channel_it->second.getOperators().end(); ++it) {
+                operatorCount++;
+            }
+
+            if (operatorCount == 1 && channel_it->second.getMembers().size() > 1) {
+                int newOp = -1;
+                for (std::set<int>::const_iterator it = channel_it->second.getMembers().begin();
+                     it != channel_it->second.getMembers().end(); ++it) {
+                    if (*it != client_fd) {
+                        newOp = *it;
+                        break;
+                    }
+                }
+
+                if (newOp != -1) {
+                    channel_it->second.addOperator(newOp);
+
+                    std::string mode_notification = ":ircserv MODE " + channel_name + " +o " + users[newOp].getNickname() + "\r\n";
+                    channel_it->second.broadcastMessage(mode_notification);
+                }
+            }
+        }
+
         std::string part_notification = ":" + users[client_fd].getFullIdentity() + " PART " + channel_name + " :" + part_message + "\r\n";
         channel_it->second.broadcastMessage(part_notification);
 

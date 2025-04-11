@@ -58,6 +58,18 @@ static void handleModeO(Channel& channel, bool adding, std::string& modeChanges,
     if (adding) {
         channel.addOperator(target_fd);
     } else {
+        int operatorCount = 0;
+        const std::set<int>& ops = channel.getOperators();
+        for (std::set<int>::const_iterator it = ops.begin(); it != ops.end(); ++it) {
+            operatorCount++;
+        }
+
+        if (operatorCount <= 1 && channel.isOperator(target_fd)) {
+            std::string error = ":ircserv 482 " + users.at(client_fd).getNickname() + " " + channel.getName() + " :Cannot remove last operator from channel\r\n";
+            send(client_fd, error.c_str(), error.length(), 0);
+            return;
+        }
+
         channel.removeOperator(target_fd);
     }
 
@@ -93,7 +105,7 @@ static void handleModeL(Channel& channel, bool adding, std::string& modeChanges,
 }
 
 void Command::handleMode(int client_fd, const std::string& line) {
-    if (!users[client_fd].isAuthenticated()) {
+    if (!users.at(client_fd).isAuthenticated()) {
         std::string error = ":ircserv 451 * :You have not registered\r\n";
         send(client_fd, error.c_str(), error.length(), 0);
         return;
@@ -104,19 +116,19 @@ void Command::handleMode(int client_fd, const std::string& line) {
     iss >> target;
 
     if (target.empty()) {
-        std::string error = ":ircserv 461 " + users[client_fd].getNickname() + " MODE :Not enough parameters\r\n";
+        std::string error = ":ircserv 461 " + users.at(client_fd).getNickname() + " MODE :Not enough parameters\r\n";
         send(client_fd, error.c_str(), error.length(), 0);
         return;
     }
 
     if (target[0] == '#' && channels.find(target) == channels.end()) {
-        std::string error = ":ircserv 403 " + users[client_fd].getNickname() + " " + target + " :No such channel\r\n";
+        std::string error = ":ircserv 403 " + users.at(client_fd).getNickname() + " " + target + " :No such channel\r\n";
         send(client_fd, error.c_str(), error.length(), 0);
         return;
     }
 
     if (target[0] != '#') {
-        std::string error = ":ircserv 502 " + users[client_fd].getNickname() + " :Cannot change mode for other users\r\n";
+        std::string error = ":ircserv 502 " + users.at(client_fd).getNickname() + " :Cannot change mode for other users\r\n";
         send(client_fd, error.c_str(), error.length(), 0);
         return;
     }
@@ -124,19 +136,19 @@ void Command::handleMode(int client_fd, const std::string& line) {
     Channel& channel = channels[target];
 
     if (!(iss >> modes)) {
-        std::string mode_response = ":ircserv 324 " + users[client_fd].getNickname() + " " + target + " " + channel.getModeString() + "\r\n";
+        std::string mode_response = ":ircserv 324 " + users.at(client_fd).getNickname() + " " + target + " " + channel.getModeString() + "\r\n";
         send(client_fd, mode_response.c_str(), mode_response.length(), 0);
         return;
     }
 
     if (!channel.hasMember(client_fd)) {
-        std::string error = ":ircserv 442 " + users[client_fd].getNickname() + " " + target + " :You're not on that channel\r\n";
+        std::string error = ":ircserv 442 " + users.at(client_fd).getNickname() + " " + target + " :You're not on that channel\r\n";
         send(client_fd, error.c_str(), error.length(), 0);
         return;
     }
 
     if (!channel.isOperator(client_fd)) {
-        std::string error = ":ircserv 482 " + users[client_fd].getNickname() + " " + target + " :You're not channel operator\r\n";
+        std::string error = ":ircserv 482 " + users.at(client_fd).getNickname() + " " + target + " :You're not channel operator\r\n";
         send(client_fd, error.c_str(), error.length(), 0);
         return;
     }
@@ -174,7 +186,7 @@ void Command::handleMode(int client_fd, const std::string& line) {
     }
 
     if (modeChanges.length() > 1) {
-        std::string mode_notification = ":" + users[client_fd].getFullIdentity() + " MODE " + target + " " + modeChanges + modeParams + "\r\n";
+        std::string mode_notification = ":" + users.at(client_fd).getFullIdentity() + " MODE " + target + " " + modeChanges + modeParams + "\r\n";
         channel.broadcastMessage(mode_notification);
     }
 }
