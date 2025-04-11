@@ -8,9 +8,18 @@ void Command::handlePart(int client_fd, const std::string& line) {
         return;
     }
 
-    std::istringstream iss(line.substr(5));
+    // std::istringstream iss(line.substr(5));
+    // std::string channel_params;
+    // std::getline(iss, channel_params);
+
+    std::istringstream iss;
+    if (line.length() > 5) {
+        iss.str(line.substr(5));
+    }
+
     std::string channel_params;
-    std::getline(iss, channel_params);
+    iss >> channel_params;
+
     if (channel_params[0] == ' ') channel_params = channel_params.substr(1);
 
     std::istringstream channel_iss(channel_params);
