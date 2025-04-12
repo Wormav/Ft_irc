@@ -32,6 +32,13 @@ void Command::handleJoin(int client_fd, std::istringstream& iss) {
         }
 
         Channel& channel = channels[channel_name];
+
+        if (channel.hasMember(client_fd)) {
+            std::string error = ":ircserv 443 " + users[client_fd].getNickname() + " " + channel_name + " :is already on channel\r\n";
+            send(client_fd, error.c_str(), error.length(), 0);
+            continue;
+        }
+
         if (!isNewChannel && channel.isInviteOnly() && !channel.isInvited(client_fd) && !channel.hasMember(client_fd)) {
             std::string error = ":ircserv 473 " + users[client_fd].getNickname() + " " + channel_name + " :Cannot join channel (+i)\r\n";
             send(client_fd, error.c_str(), error.length(), 0);
