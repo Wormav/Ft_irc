@@ -1,4 +1,4 @@
-#include "../includes/Bot.hpp"
+#include <Bot.hpp>
 
 Bot::Bot(const std::string& nickname, const std::string& username, const std::string& realname, const std::string& channel)
     : _nickname(nickname), _username(username), _realname(realname), _channel(channel) {

@@ -7,8 +7,8 @@
 #include <unistd.h>
 #include <poll.h>
 #include <pthread.h>
-#include "../includes/Bot.hpp"
-#include "../includes/Server.hpp"
+#include <Bot.hpp>
+#include <Server.hpp>
 
 #define BUFFER_SIZE 1024
 
