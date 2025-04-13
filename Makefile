@@ -1,5 +1,5 @@
 NAME			:= ircserv
-BONUS_NAME		:= ircbot
+BONUS_NAME		:= ircserv_bonus
 
 # Répertoires
 SRCS_DIR		:= src
@@ -33,6 +33,22 @@ SRCS			:=	main.cpp \
 # Sources pour le bonus
 BONUS_SRCS		:=	main_bonus.cpp \
 					Bot.cpp \
+					Server.cpp \
+					Channel.cpp \
+					User.cpp \
+					Command.cpp \
+					commands/handleInvite.cpp \
+					commands/handleJoin.cpp \
+					commands/handleKick.cpp \
+					commands/handleMode.cpp \
+					commands/handleNick.cpp \
+					commands/handlePart.cpp \
+					commands/handlePass.cpp \
+					commands/handlePrivmsg.cpp \
+					commands/handleQuit.cpp \
+					commands/handleTopic.cpp \
+					commands/handleUser.cpp \
+					commands/sendWelcomeMessages.cpp \
 
 # Ajout des préfixes et génération des objets
 SRCS			:= $(addprefix $(SRCS_DIR)/, $(SRCS))
@@ -72,9 +88,9 @@ $(NAME): $(OBJS)
 bonus: $(OBJS_DIR) $(BONUS_NAME)
 
 $(BONUS_NAME): $(BONUS_OBJS)
-	@echo "$(BLUE)$(BONUS_EMOJI)  Compilation du bonus en cours...$(RESET)"
+	@echo "$(BLUE)$(BONUS_EMOJI) Compilation bonus in progress...$(RESET)"
 	@$(CXX) $(FLAGXX) $(BONUS_OBJS) -o $@
-	@echo "$(GREEN)$(SUCXXESS_EMOJI) Compilation du bonus terminée !$(RESET)"
+	@echo "$(GREEN)$(SUCXXESS_EMOJI) Compilation bonus complete !$(RESET)"
 
 $(OBJS_DIR)/%.o: %.cpp
 	@$(DIR_UP)

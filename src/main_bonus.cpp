@@ -6,11 +6,22 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <poll.h>
+#include <pthread.h>
 #include "../includes/Bot.hpp"
+#include "../includes/Server.hpp"
 
 #define BUFFER_SIZE 1024
 
+// Structure pour passer les paramètres au thread du bot
+struct BotParams {
+    int port;
+    std::string password;
+};
+
 int connectToServer(int port) {
+    // Attendre un peu que le serveur soit lancé
+    sleep(2);
+
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
         std::cerr << "Erreur lors de la création du socket" << std::endl;
@@ -54,27 +65,21 @@ void joinChannel(int sockfd, const std::string& channel) {
     sendMessage(sockfd, "JOIN " + channel + "\r\n");
 }
 
-int main(int argc, char* argv[]) {
-    if (argc != 3) {
-        std::cerr << "Usage: " << argv[0] << " <port> <password>" << std::endl;
-        return 1;
-    }
-
-    int port = std::atoi(argv[1]);
-    std::string password = argv[2];
+// Fonction qui sera exécutée par le thread du bot
+void* runBot(void* arg) {
+    BotParams* params = static_cast<BotParams*>(arg);
 
     Bot bot("IRCBot", "bot", "IRC Bot", "#bot");
 
-    int sockfd = connectToServer(port);
+    int sockfd = connectToServer(params->port);
     if (sockfd < 0) {
-        return 1;
+        delete params; // Nettoyer la mémoire
+        return NULL;
     }
 
-    registerBot(sockfd, bot, password);
+    registerBot(sockfd, bot, params->password);
 
-    // Attendre un peu pour s'assurer que l'enregistrement est terminé
     sleep(2);
-
     joinChannel(sockfd, bot.getChannel());
 
     char buffer[BUFFER_SIZE];
@@ -85,11 +90,16 @@ int main(int argc, char* argv[]) {
     std::cout << "Bot connecté au serveur IRC" << std::endl;
 
     while (true) {
-        int ret = poll(fds, 1, -1);
+        int ret = poll(fds, 1, 1000); // Timeout de 1 seconde pour permettre une sortie propre
 
         if (ret < 0) {
             std::cerr << "Erreur de poll" << std::endl;
             break;
+        }
+
+        if (ret == 0) {
+            // Timeout, continuer la boucle
+            continue;
         }
 
         if (fds[0].revents & POLLIN) {
@@ -100,7 +110,7 @@ int main(int argc, char* argv[]) {
             }
 
             buffer[bytesRead] = '\0';
-            std::cout << "Reçu: " << buffer << std::endl;
+            std::cout << "Bot a reçu: " << buffer << std::endl;
 
             std::string message(buffer);
 
@@ -119,5 +129,47 @@ int main(int argc, char* argv[]) {
     }
 
     close(sockfd);
+    delete params; // Nettoyer la mémoire
+    return NULL;
+}
+
+int main(int argc, char **argv)
+{
+    if (argc != 3)
+    {
+        std::cerr << "Usage: " << argv[0] << " <port> <password>" << std::endl;
+        return 1;
+    }
+
+    int port = std::atoi(argv[1]);
+    std::string password = argv[2];
+
+    // Créer un thread pour le bot
+    pthread_t bot_thread;
+    BotParams* params = new BotParams;
+    params->port = port;
+    params->password = password;
+
+    // Lancer le thread du bot
+    if (pthread_create(&bot_thread, NULL, runBot, params) != 0) {
+        std::cerr << "Erreur lors de la création du thread du bot" << std::endl;
+        delete params;
+        return 1;
+    }
+
+    // Configurer le thread pour qu'il se termine automatiquement lorsque le thread principal se termine
+    pthread_detach(bot_thread);
+
+    // Lancer le serveur (dans le thread principal)
+    std::cout << "Démarrage du serveur IRC..." << std::endl;
+    Server server(port, password);
+    server.run();  // Cette fonction est bloquante jusqu'à ce que le serveur s'arrête
+
+    // On n'atteint ce point que si le serveur s'arrête
+    std::cout << "Serveur IRC arrêté" << std::endl;
+
+    // Attendre un peu que le thread du bot puisse terminer proprement
+    sleep(1);
+
     return 0;
 }
