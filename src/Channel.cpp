@@ -166,13 +166,8 @@ std::string Channel::getModeString() const {
 void Channel::broadcastMessage(const std::string& message, int excludeClient) const {
     for (std::set<int>::const_iterator it = members.begin(); it != members.end(); ++it) {
         if (*it != excludeClient) {
-            if (*it > 0) {
-                int result = send(*it, message.c_str(), message.length(), MSG_NOSIGNAL);
-                if (result < 0 && errno != EWOULDBLOCK && errno != EAGAIN) {
-                    // Gestion silencieuse des erreurs
-                    // On pourrait logger l'erreur ici si nécessaire
-                }
-            }
+            if (*it > 0)
+                send(*it, message.c_str(), message.length(), MSG_NOSIGNAL);
         }
     }
 }
