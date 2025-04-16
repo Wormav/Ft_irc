@@ -169,7 +169,6 @@ void Server::handleClientData(int client_fd) {
 
         std::cout << "Received from client " << client_fd << ": " << line << std::endl;
 
-        // Traiter la commande
         processCommand(client_fd, line);
     }
 }
@@ -181,8 +180,6 @@ void Server::disconnectClient(int client_fd) {
 
     if (!users[client_fd].getNickname().empty()) {
         std::string quit_notification = ":" + users[client_fd].getFullIdentity() + " QUIT :Connection closed\r\n";
-
-        std::set<int> informed_users;
 
         std::vector<std::string> userChannels;
         for (std::map<std::string, Channel>::iterator channel_it = channels.begin();
@@ -196,8 +193,33 @@ void Server::disconnectClient(int client_fd) {
         for (size_t i = 0; i < userChannels.size(); ++i) {
             std::map<std::string, Channel>::iterator channel_it = channels.find(userChannels[i]);
             if (channel_it != channels.end()) {
-                channel_it->second.broadcastMessage(quit_notification, client_fd);
+                if (channel_it->second.isOperator(client_fd)) {
+                    int remainingOps = 0;
+                    const std::set<int>& ops = channel_it->second.getOperators();
+                    for (std::set<int>::const_iterator op_it = ops.begin(); op_it != ops.end(); ++op_it) {
+                        if (*op_it != client_fd) {
+                            remainingOps++;
+                        }
+                    }
 
+                    if (remainingOps == 0 && channel_it->second.getMembers().size() > 1) {
+                        int newOp = -1;
+                        const std::set<int>& members = channel_it->second.getMembers();
+                        for (std::set<int>::const_iterator mem_it = members.begin(); mem_it != members.end(); ++mem_it) {
+                            if (*mem_it != client_fd) {
+                                newOp = *mem_it;
+                                break;
+                            }
+                        }
+                        if (newOp != -1 && users.find(newOp) != users.end()) {
+                            channel_it->second.addOperator(newOp);
+                            std::string mode_msg = ":ircserv MODE " + userChannels[i] + " +o " + users[newOp].getNickname() + "\r\n";
+                            channel_it->second.broadcastMessage(mode_msg);
+                        }
+                    }
+                }
+
+                channel_it->second.broadcastMessage(quit_notification, client_fd);
                 channel_it->second.removeMember(client_fd);
 
                 if (channel_it->second.isEmpty()) {

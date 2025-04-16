@@ -24,7 +24,7 @@ int connectToServer(int port) {
 
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
-        std::cerr << "Erreur lors de la création du socket" << std::endl;
+        std::cerr << "Error socket created" << std::endl;
         return -1;
     }
 
@@ -35,13 +35,13 @@ int connectToServer(int port) {
 
     // Utiliser localhost (127.0.0.1) par défaut
     if (inet_pton(AF_INET, "127.0.0.1", &servAddr.sin_addr) <= 0) {
-        std::cerr << "Adresse invalide" << std::endl;
+        std::cerr << "invalide adress" << std::endl;
         close(sockfd);
         return -1;
     }
 
     if (connect(sockfd, (struct sockaddr*)&servAddr, sizeof(servAddr)) < 0) {
-        std::cerr << "Connexion échouée" << std::endl;
+        std::cerr << "Echec co" << std::endl;
         close(sockfd);
         return -1;
     }
@@ -87,13 +87,13 @@ void* runBot(void* arg) {
     fds[0].fd = sockfd;
     fds[0].events = POLLIN;
 
-    std::cout << "Bot connecté au serveur IRC" << std::endl;
+    std::cout << "Bot connect to server IRC" << std::endl;
 
     while (true) {
         int ret = poll(fds, 1, 1000); // Timeout de 1 seconde pour permettre une sortie propre
 
         if (ret < 0) {
-            std::cerr << "Erreur de poll" << std::endl;
+            std::cerr << "Error poll" << std::endl;
             break;
         }
 
@@ -105,12 +105,12 @@ void* runBot(void* arg) {
         if (fds[0].revents & POLLIN) {
             ssize_t bytesRead = recv(sockfd, buffer, BUFFER_SIZE - 1, 0);
             if (bytesRead <= 0) {
-                std::cerr << "Connexion fermée ou erreur" << std::endl;
+                std::cerr << "Connexion close" << std::endl;
                 break;
             }
 
             buffer[bytesRead] = '\0';
-            std::cout << "Bot a reçu: " << buffer << std::endl;
+            std::cout << "Bot ok: " << buffer << std::endl;
 
             std::string message(buffer);
 
@@ -152,7 +152,7 @@ int main(int argc, char **argv)
 
     // Lancer le thread du bot
     if (pthread_create(&bot_thread, NULL, runBot, params) != 0) {
-        std::cerr << "Erreur lors de la création du thread du bot" << std::endl;
+        std::cerr << "Error created bot" << std::endl;
         delete params;
         return 1;
     }
@@ -161,12 +161,12 @@ int main(int argc, char **argv)
     pthread_detach(bot_thread);
 
     // Lancer le serveur (dans le thread principal)
-    std::cout << "Démarrage du serveur IRC..." << std::endl;
+    std::cout << "start serveur IRC..." << std::endl;
     Server server(port, password);
     server.run();  // Cette fonction est bloquante jusqu'à ce que le serveur s'arrête
 
     // On n'atteint ce point que si le serveur s'arrête
-    std::cout << "Serveur IRC arrêté" << std::endl;
+    std::cout << "Serveur IRC stop" << std::endl;
 
     // Attendre un peu que le thread du bot puisse terminer proprement
     sleep(1);
