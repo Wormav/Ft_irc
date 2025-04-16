@@ -13,15 +13,18 @@
 
 bool Server::running = true;
 
-void Server::handleSignal(int signal) {
-    if (signal == SIGINT) {
+void Server::handleSignal(int signal)
+{
+    if (signal == SIGINT)
+	{
 		std::cout << "\nReceiving SIGINT (Ctrl+C). Shutting down server..." << std::endl;
         running = false;
     }
 }
 
 Server::Server(int port, const std::string& password)
-    : port(port), password(password), server_fd(-1), epoll_fd(-1) {
+    : port(port), password(password), server_fd(-1), epoll_fd(-1)
+{
     command_handler = new Command(this, users, channels, password);
 
     struct sigaction sa;
@@ -31,26 +34,28 @@ Server::Server(int port, const std::string& password)
     sigaction(SIGINT, &sa, NULL);
 }
 
-Server::~Server() {
+Server::~Server()
+{
     cleanupResources();
 }
 
-void Server::cleanupResources() {
+void Server::cleanupResources()
+{
     std::vector<int> client_fds;
-    for (std::map<int, User>::iterator it = users.begin(); it != users.end(); ++it) {
+    for (std::map<int, User>::iterator it = users.begin(); it != users.end(); ++it)
         client_fds.push_back(it->first);
-    }
 
-    for (size_t i = 0; i < client_fds.size(); ++i) {
+    for (size_t i = 0; i < client_fds.size(); ++i)
         disconnectClient(client_fds[i]);
-    }
 
-    if (server_fd >= 0) {
+    if (server_fd >= 0)
+	{
         close(server_fd);
         server_fd = -1;
     }
 
-    if (epoll_fd >= 0) {
+    if (epoll_fd >= 0)
+	{
         close(epoll_fd);
         epoll_fd = -1;
     }
@@ -59,9 +64,11 @@ void Server::cleanupResources() {
     command_handler = NULL;
 }
 
-void Server::setupSocket() {
+void Server::setupSocket()
+{
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (server_fd < 0) {
+    if (server_fd < 0)
+	{
         std::cerr << "Error creating socket: " << strerror(errno) << std::endl;
         return;
     }
@@ -80,14 +87,16 @@ void Server::setupSocket() {
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(port);
 
-    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
+    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0)
+	{
         std::cerr << "Error during bind: " << strerror(errno) << std::endl;
         close(server_fd);
         server_fd = -1;
         return;
     }
 
-    if (listen(server_fd, 10) < 0) {
+    if (listen(server_fd, 10) < 0)
+	{
         std::cerr << "Error while listening: " << strerror(errno) << std::endl;
         close(server_fd);
         server_fd = -1;
@@ -95,7 +104,8 @@ void Server::setupSocket() {
     }
 
     epoll_fd = epoll_create1(0);
-    if (epoll_fd < 0) {
+    if (epoll_fd < 0)
+	{
         std::cerr << "Error creating epoll instance: " << strerror(errno) << std::endl;
         close(server_fd);
         server_fd = -1;
@@ -105,7 +115,8 @@ void Server::setupSocket() {
     struct epoll_event event;
     event.events = EPOLLIN;
     event.data.fd = server_fd;
-    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, server_fd, &event) < 0) {
+    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, server_fd, &event) < 0)
+	{
         std::cerr << "Error adding server socket to epoll: " << strerror(errno) << std::endl;
         close(server_fd);
         close(epoll_fd);
@@ -118,13 +129,15 @@ void Server::setupSocket() {
     std::cout << "Waiting for connections..." << std::endl;
 }
 
-void Server::handleNewConnection() {
+void Server::handleNewConnection()
+{
     int client_fd;
     struct sockaddr_in client_addr;
     socklen_t addr_len = sizeof(client_addr);
 
     client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &addr_len);
-    if (client_fd < 0) {
+    if (client_fd < 0)
+	{
         std::cerr << "Error accepting connection: " << strerror(errno) << std::endl;
         return;
     }
@@ -132,7 +145,8 @@ void Server::handleNewConnection() {
     struct epoll_event event;
     event.events = EPOLLIN;
     event.data.fd = client_fd;
-    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &event) < 0) {
+    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &event) < 0)
+	{
         std::cerr << "Error adding client socket to epoll: " << strerror(errno) << std::endl;
         close(client_fd);
         return;
@@ -144,12 +158,14 @@ void Server::handleNewConnection() {
     client_buffers[client_fd] = "";
 }
 
-void Server::handleClientData(int client_fd) {
+void Server::handleClientData(int client_fd)
+{
     char buffer[1024];
     memset(buffer, 0, sizeof(buffer));
     int bytes_received = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
 
-    if (bytes_received <= 0) {
+    if (bytes_received <= 0)
+	{
         if (bytes_received == 0)
             std::cout << "Client disconnected (fd: " << client_fd << ")" << std::endl;
         else
@@ -163,7 +179,8 @@ void Server::handleClientData(int client_fd) {
 
     std::string& buf = client_buffers[client_fd];
     size_t pos;
-    while ((pos = buf.find("\r\n")) != std::string::npos) {
+    while ((pos = buf.find("\r\n")) != std::string::npos)
+	{
         std::string line = buf.substr(0, pos);
         buf = buf.substr(pos + 2);
 
@@ -173,45 +190,52 @@ void Server::handleClientData(int client_fd) {
     }
 }
 
-void Server::disconnectClient(int client_fd) {
-    if (users.find(client_fd) == users.end()) {
+void Server::disconnectClient(int client_fd)
+{
+    if (users.find(client_fd) == users.end())
         return;
-    }
 
-    if (!users[client_fd].getNickname().empty()) {
+    if (!users[client_fd].getNickname().empty())
+	{
         std::string quit_notification = ":" + users[client_fd].getFullIdentity() + " QUIT :Connection closed\r\n";
 
         std::vector<std::string> userChannels;
         for (std::map<std::string, Channel>::iterator channel_it = channels.begin();
              channel_it != channels.end();
              ++channel_it) {
-            if (channel_it->second.hasMember(client_fd)) {
+            if (channel_it->second.hasMember(client_fd))
                 userChannels.push_back(channel_it->first);
-            }
         }
 
-        for (size_t i = 0; i < userChannels.size(); ++i) {
+        for (size_t i = 0; i < userChannels.size(); ++i)
+		{
             std::map<std::string, Channel>::iterator channel_it = channels.find(userChannels[i]);
-            if (channel_it != channels.end()) {
-                if (channel_it->second.isOperator(client_fd)) {
+            if (channel_it != channels.end())
+			{
+                if (channel_it->second.isOperator(client_fd))
+				{
                     int remainingOps = 0;
                     const std::set<int>& ops = channel_it->second.getOperators();
-                    for (std::set<int>::const_iterator op_it = ops.begin(); op_it != ops.end(); ++op_it) {
-                        if (*op_it != client_fd) {
+                    for (std::set<int>::const_iterator op_it = ops.begin(); op_it != ops.end(); ++op_it)
+					{
+                        if (*op_it != client_fd)
                             remainingOps++;
-                        }
                     }
 
-                    if (remainingOps == 0 && channel_it->second.getMembers().size() > 1) {
+                    if (remainingOps == 0 && channel_it->second.getMembers().size() > 1)
+					{
                         int newOp = -1;
                         const std::set<int>& members = channel_it->second.getMembers();
-                        for (std::set<int>::const_iterator mem_it = members.begin(); mem_it != members.end(); ++mem_it) {
-                            if (*mem_it != client_fd) {
+                        for (std::set<int>::const_iterator mem_it = members.begin(); mem_it != members.end(); ++mem_it)
+						{
+                            if (*mem_it != client_fd)
+							{
                                 newOp = *mem_it;
                                 break;
                             }
                         }
-                        if (newOp != -1 && users.find(newOp) != users.end()) {
+                        if (newOp != -1 && users.find(newOp) != users.end())
+						{
                             channel_it->second.addOperator(newOp);
                             std::string mode_msg = ":ircserv MODE " + userChannels[i] + " +o " + users[newOp].getNickname() + "\r\n";
                             channel_it->second.broadcastMessage(mode_msg);
@@ -222,9 +246,8 @@ void Server::disconnectClient(int client_fd) {
                 channel_it->second.broadcastMessage(quit_notification, client_fd);
                 channel_it->second.removeMember(client_fd);
 
-                if (channel_it->second.isEmpty()) {
+                if (channel_it->second.isEmpty())
                     channels.erase(channel_it);
-                }
             }
         }
     }
@@ -238,14 +261,17 @@ void Server::disconnectClient(int client_fd) {
     }
 }
 
-void Server::processCommand(int client_fd, const std::string& line) {
+void Server::processCommand(int client_fd, const std::string& line)
+{
     command_handler->process(client_fd, line);
 }
 
-void Server::run() {
+void Server::run()
+{
     setupSocket();
 
-    if (server_fd < 0 || epoll_fd < 0) {
+    if (server_fd < 0 || epoll_fd < 0)
+	{
         std::cerr << "Server setup failed. Exiting." << std::endl;
         return;
     }
@@ -254,24 +280,24 @@ void Server::run() {
     struct epoll_event events[MAX_EVENTS];
 
 
-    while (running) {
+    while (running)
+	{
         int n_events = epoll_wait(epoll_fd, events, MAX_EVENTS, 100);
 
         if (n_events < 0) {
-            if (errno == EINTR) {
+            if (errno == EINTR)
                 continue;
-            }
 
             std::cerr << "Error in epoll_wait: " << strerror(errno) << std::endl;
             break;
         }
 
-        for (int i = 0; i < n_events; i++) {
-            if (events[i].data.fd == server_fd) {
+        for (int i = 0; i < n_events; i++)
+		{
+            if (events[i].data.fd == server_fd)
                 handleNewConnection();
-            } else {
+            else
                 handleClientData(events[i].data.fd);
-            }
         }
     }
 

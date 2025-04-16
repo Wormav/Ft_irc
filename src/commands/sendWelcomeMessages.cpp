@@ -2,7 +2,8 @@
 #include <sys/socket.h>
 
 
-void Command::sendWelcomeMessages(int client_fd, const User& user) {
+void Command::sendWelcomeMessages(int client_fd, const User& user)
+{
     std::string welcome = ":ircserv 001 " + user.getNickname() + " :Welcome to the IRC Network " + user.getFullIdentity() + "\r\n";
     std::string yourhost = ":ircserv 002 " + user.getNickname() + " :Your host is ircserv, running version 1.0\r\n";
     std::string created = ":ircserv 003 " + user.getNickname() + " :This server was created Apr 2025\r\n";
