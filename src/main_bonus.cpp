@@ -7,23 +7,16 @@
 #include <unistd.h>
 #include <poll.h>
 #include <pthread.h>
-#include <Bot.hpp>
+#include <Bot_bonus.hpp>
 #include <Server.hpp>
 
-#define BUFFER_SIZE 1024
-
-// Structure pour passer les paramètres au thread du bot
-struct BotParams {
-    int port;
-    std::string password;
-};
-
-int connectToServer(int port) {
-    // Attendre un peu que le serveur soit lancé
+int connectToServer(int port)
+{
     sleep(2);
 
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0) {
+    if (sockfd < 0)
+	{
         std::cerr << "Error socket created" << std::endl;
         return -1;
     }
@@ -33,14 +26,15 @@ int connectToServer(int port) {
     servAddr.sin_family = AF_INET;
     servAddr.sin_port = htons(port);
 
-    // Utiliser localhost (127.0.0.1) par défaut
-    if (inet_pton(AF_INET, "127.0.0.1", &servAddr.sin_addr) <= 0) {
+    if (inet_pton(AF_INET, "127.0.0.1", &servAddr.sin_addr) <= 0)
+	{
         std::cerr << "invalide adress" << std::endl;
         close(sockfd);
         return -1;
     }
 
-    if (connect(sockfd, (struct sockaddr*)&servAddr, sizeof(servAddr)) < 0) {
+    if (connect(sockfd, (struct sockaddr*)&servAddr, sizeof(servAddr)) < 0)
+	{
         std::cerr << "Echec co" << std::endl;
         close(sockfd);
         return -1;
@@ -49,31 +43,34 @@ int connectToServer(int port) {
     return sockfd;
 }
 
-void sendMessage(int sockfd, const std::string& message) {
-    if (send(sockfd, message.c_str(), message.length(), 0) < 0) {
+void sendMessage(int sockfd, const std::string& message)
+{
+    if (send(sockfd, message.c_str(), message.length(), 0) < 0)
         std::cerr << "Erreur lors de l'envoi du message" << std::endl;
-    }
 }
 
-void registerBot(int sockfd, const Bot& bot, const std::string& password) {
+void registerBot(int sockfd, const Bot& bot, const std::string& password)
+{
     sendMessage(sockfd, "PASS " + password + "\r\n");
     sendMessage(sockfd, "NICK " + bot.getNickname() + "\r\n");
     sendMessage(sockfd, "USER " + bot.getUsername() + " 0 * :" + bot.getRealname() + "\r\n");
 }
 
-void joinChannel(int sockfd, const std::string& channel) {
+void joinChannel(int sockfd, const std::string& channel)
+{
     sendMessage(sockfd, "JOIN " + channel + "\r\n");
 }
 
-// Fonction qui sera exécutée par le thread du bot
-void* runBot(void* arg) {
+void* runBot(void* arg)
+{
     BotParams* params = static_cast<BotParams*>(arg);
 
     Bot bot("IRCBot", "bot", "IRC Bot", "#bot");
 
     int sockfd = connectToServer(params->port);
-    if (sockfd < 0) {
-        delete params; // Nettoyer la mémoire
+    if (sockfd < 0)
+	{
+        delete params;
         return NULL;
     }
 
@@ -89,22 +86,24 @@ void* runBot(void* arg) {
 
     std::cout << "Bot connect to server IRC" << std::endl;
 
-    while (true) {
-        int ret = poll(fds, 1, 1000); // Timeout de 1 seconde pour permettre une sortie propre
+    while (true)
+	{
+        int ret = poll(fds, 1, 1000);
 
-        if (ret < 0) {
+        if (ret < 0)
+		{
             std::cerr << "Error poll" << std::endl;
             break;
         }
 
-        if (ret == 0) {
-            // Timeout, continuer la boucle
+        if (ret == 0)
             continue;
-        }
 
-        if (fds[0].revents & POLLIN) {
+        if (fds[0].revents & POLLIN)
+		{
             ssize_t bytesRead = recv(sockfd, buffer, BUFFER_SIZE - 1, 0);
-            if (bytesRead <= 0) {
+            if (bytesRead <= 0)
+			{
                 std::cerr << "Connexion close" << std::endl;
                 break;
             }
@@ -114,14 +113,14 @@ void* runBot(void* arg) {
 
             std::string message(buffer);
 
-            // Répondre au PING pour rester connecté
-            if (message.find("PING") != std::string::npos) {
+            if (message.find("PING") != std::string::npos)
+			{
                 std::string pong = "PONG" + message.substr(4) + "\r\n";
                 sendMessage(sockfd, pong);
             }
 
-            // Répondre aux messages dans le canal
-            if (message.find("PRIVMSG " + bot.getChannel()) != std::string::npos) {
+            if (message.find("PRIVMSG " + bot.getChannel()) != std::string::npos)
+			{
                 std::string response = "PRIVMSG " + bot.getChannel() + " :" + bot.getRandomResponse() + "\r\n";
                 sendMessage(sockfd, response);
             }
@@ -129,8 +128,8 @@ void* runBot(void* arg) {
     }
 
     close(sockfd);
-    delete params; // Nettoyer la mémoire
-    return NULL;
+	delete params;
+	return NULL;
 }
 
 int main(int argc, char **argv)
@@ -144,31 +143,26 @@ int main(int argc, char **argv)
     int port = std::atoi(argv[1]);
     std::string password = argv[2];
 
-    // Créer un thread pour le bot
     pthread_t bot_thread;
     BotParams* params = new BotParams;
     params->port = port;
     params->password = password;
 
-    // Lancer le thread du bot
-    if (pthread_create(&bot_thread, NULL, runBot, params) != 0) {
+    if (pthread_create(&bot_thread, NULL, runBot, params) != 0)
+	{
         std::cerr << "Error created bot" << std::endl;
         delete params;
         return 1;
     }
 
-    // Configurer le thread pour qu'il se termine automatiquement lorsque le thread principal se termine
     pthread_detach(bot_thread);
 
-    // Lancer le serveur (dans le thread principal)
     std::cout << "start serveur IRC..." << std::endl;
     Server server(port, password);
-    server.run();  // Cette fonction est bloquante jusqu'à ce que le serveur s'arrête
+    server.run();
 
-    // On n'atteint ce point que si le serveur s'arrête
     std::cout << "Serveur IRC stop" << std::endl;
 
-    // Attendre un peu que le thread du bot puisse terminer proprement
     sleep(1);
 
     return 0;

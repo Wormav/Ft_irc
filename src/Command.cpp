@@ -9,49 +9,41 @@ Command::Command(Server* server, std::map<int, User>& users, std::map<std::strin
 
 Command::~Command() {}
 
-void Command::process(int client_fd, const std::string& line) {
+void Command::process(int client_fd, const std::string& line)
+{
     std::istringstream iss(line);
     std::string command;
     iss >> command;
 
     std::transform(command.begin(), command.end(), command.begin(), ::toupper);
 
-    if (command == "PASS") {
+    if (command == "PASS")
         handlePass(client_fd, iss);
-    }
-    else if (command == "NICK") {
+    else if (command == "NICK")
         handleNick(client_fd, iss);
-    }
-    else if (command == "USER") {
+    else if (command == "USER")
         handleUser(client_fd, line);
-    }
-    else if (command == "JOIN") {
+    else if (command == "JOIN")
         handleJoin(client_fd, iss);
-    }
-    else if (command == "PRIVMSG") {
+    else if (command == "PRIVMSG")
         handlePrivmsg(client_fd, iss);
-    }
-    else if (command == "PART") {
+    else if (command == "PART")
         handlePart(client_fd, line);
-    }
-    else if (command == "QUIT") {
-        if (users.find(client_fd) != users.end()) {
+    else if (command == "QUIT")
+	{
+        if (users.find(client_fd) != users.end())
             handleQuit(client_fd, line);
-        }
 	}
-    else if (command == "KICK") {
+    else if (command == "KICK")
         handleKick(client_fd, line);
-    }
-    else if (command == "INVITE") {
+    else if (command == "INVITE")
         handleInvite(client_fd, line);
-    }
-    else if (command == "TOPIC") {
+    else if (command == "TOPIC")
         handleTopic(client_fd, line);
-    }
-    else if (command == "MODE") {
+    else if (command == "MODE")
         handleMode(client_fd, line);
-    }
-    else {
+    else
+	{
         std::string error = ":ircserv 421 " +
                            (users[client_fd].isAuthenticated() ? users[client_fd].getNickname() : std::string("*")) +
                            " " + command + " :Unknown command\r\n";

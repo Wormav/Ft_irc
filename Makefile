@@ -32,7 +32,7 @@ SRCS			:=	main.cpp \
 
 # Sources pour le bonus
 BONUS_SRCS		:=	main_bonus.cpp \
-					Bot.cpp \
+					Bot_bonus.cpp \
 					Server.cpp \
 					Channel.cpp \
 					User.cpp \

@@ -1,8 +1,10 @@
 #include <Command.hpp>
 #include <sys/socket.h>
 
-void Command::handlePrivmsg(int client_fd, std::istringstream& iss) {
-    if (!users[client_fd].isAuthenticated()) {
+void Command::handlePrivmsg(int client_fd, std::istringstream& iss)
+{
+    if (!users[client_fd].isAuthenticated())
+	{
         std::string error = ":ircserv 451 * :You have not registered\r\n";
         send(client_fd, error.c_str(), error.length(), 0);
         return;
@@ -22,32 +24,41 @@ void Command::handlePrivmsg(int client_fd, std::istringstream& iss) {
     std::string sender = users[client_fd].getNickname();
     std::string msg_notification = ":" + users[client_fd].getFullIdentity() + " PRIVMSG " + target + " :" + message + "\r\n";
 
-    if (target[0] == '#') {
+    if (target[0] == '#')
+	{
         std::map<std::string, Channel>::iterator channel_it = channels.find(target);
-        if (channel_it != channels.end()) {
-            if (!channel_it->second.hasMember(client_fd)) {
+        if (channel_it != channels.end())
+		{
+            if (!channel_it->second.hasMember(client_fd))
+			{
                 std::string error = ":ircserv 442 " + sender + " " + target + " :You're not on that channel\r\n";
                 send(client_fd, error.c_str(), error.length(), 0);
                 return;
             }
 
             channel_it->second.broadcastMessage(msg_notification, client_fd);
-        } else {
+        }
+		else
+		{
             std::string error = ":ircserv 403 " + sender + " " + target + " :No such channel\r\n";
             send(client_fd, error.c_str(), error.length(), 0);
         }
     }
-    else {
+    else
+	{
         bool user_found = false;
-        for (std::map<int, User>::iterator it = users.begin(); it != users.end(); ++it) {
-            if (it->second.getNickname() == target) {
+        for (std::map<int, User>::iterator it = users.begin(); it != users.end(); ++it)
+		{
+            if (it->second.getNickname() == target)
+			{
                 user_found = true;
                 send(it->first, msg_notification.c_str(), msg_notification.length(), 0);
                 break;
             }
         }
 
-        if (!user_found) {
+        if (!user_found)
+		{
             std::string error = ":ircserv 401 " + sender + " " + target + " :No such nick/channel\r\n";
             send(client_fd, error.c_str(), error.length(), 0);
         }
